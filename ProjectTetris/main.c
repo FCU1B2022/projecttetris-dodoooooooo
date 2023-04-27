@@ -239,9 +239,9 @@ int main() {
 						cur = shape[i].color;
 					}
 					else {
-						cur = BLACK;
+						cur = WHITE;
 					}
-					printf("\033[%dm \033[0m", cur);
+					printf("\033[%dm  \033[0m", cur);
 				}
 				printf("\n");
 			}
