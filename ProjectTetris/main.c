@@ -249,6 +249,8 @@ void resetBlock(Block* block) {
 	block->current = false;
 }
 
+bool move(Block canvas[CANVANS_HEIGHT])
+
 int main() {
 
 	srand(time(NULL));
