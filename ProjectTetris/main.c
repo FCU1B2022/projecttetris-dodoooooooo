@@ -4,6 +4,23 @@
 #include <time.h>
 #include <windows.h>
 
+#define LEFT_KEY 0x25     // The key to move left, default = 0x25 (left arrow)
+#define RIGHT_KEY 0x27    // The key to move right, default = 0x27 (right arrow)
+#define ROTATE_KEY 0x26   // The key to rotate, default = 0x26 (up arrow)
+#define DOWN_KEY 0x28     // The key to move down, default = 0x28 (down arrow)
+#define FALL_KEY 0x20     // The key to fall, default = 0x20 (spacebar)
+#define HOLD_KEY 0x10
+
+#define FALL_DELAY 500    // The delay between each fall, default = 500
+#define RENDER_DELAY 100  // The delay between each frame, default = 100
+
+#define LEFT_FUNC() GetAsyncKeyState(LEFT_KEY) & 0x8000
+#define RIGHT_FUNC() GetAsyncKeyState(RIGHT_KEY) & 0x8000
+#define ROTATE_FUNC() GetAsyncKeyState(ROTATE_KEY) & 0x8000
+#define DOWN_FUNC() GetAsyncKeyState(DOWN_KEY) & 0x8000
+#define FALL_FUNC() GetAsyncKeyState(FALL_KEY) & 0x8000
+#define HOLD_FUNC() GetAsyncKeyState(HOLD_KEY) & 0x8000
+
 #define CANVAS_WIDTH 10
 #define CANVAS_HEIGHT 20
 
@@ -43,8 +60,11 @@ typedef struct
     int score;
     int rotate;
     int fallTime;
+    int speed; //新增的速度狀態
+    bool hold_used;
     ShapeId queue[4];
 }State;
+ShapeId holdShape = EMPTY;
 
 typedef struct {
     Color color;
@@ -306,6 +326,7 @@ bool move(Block canvas[CANVAS_HEIGHT][CANVAS_WIDTH], int originalX, int original
 
 void printCanvas(Block canvas[CANVAS_HEIGHT][CANVAS_WIDTH], State* state)
 {
+    printf("\033[?251"); // hide cursor
     printf("\033[0;0H\n");
     for (int i = 0; i < CANVAS_HEIGHT; i++) {
         printf("|");
@@ -314,28 +335,215 @@ void printCanvas(Block canvas[CANVAS_HEIGHT][CANVAS_WIDTH], State* state)
         }
         printf("\033[0m|\n");
     }
+
+    Shape shapeData = shapes[state->queue[1]];
+    printf("\033[%d;%dHNext:", 3, CANVAS_WIDTH * 2 + 5);
+    for (int i = 1; i <= 3; i++)
+    {
+        shapeData = shapes[state->queue[i]];
+        for (int j = 0; j < 4; j++) {
+            printf("\033[%d;%dH", i * 4 + j, CANVAS_WIDTH * 2 + 15);
+            for (int k = 0; k < 4; k++) {
+                if (j < shapeData.size && k < shapeData.size && shapeData.rotates[0][j][k]) {
+                    printf("\x1b[%dm  ", shapeData.color);
+                }
+                else {
+                    printf("\x1b[0m  ");
+                }
+            }
+        }
+    }
+    printf("\033[%d;%dHHold: ", 15, CANVAS_WIDTH * 2 + 5);
+    if (holdShape != EMPTY) {
+        Shape holdShapeData = shapes[holdShape];
+        for (int j = 0; j < 4; j++) {
+            printf("\033[%d;%dH", j + 16, CANVAS_WIDTH * 2 + 15);
+            for (int k = 0; k < 4; k++) {
+                if (j < holdShapeData.size && k < holdShapeData.size && holdShapeData.rotates[0][j][k]) {
+                    printf("\x1b[%dm  ", holdShapeData.color);
+                }
+                else {
+                    printf("\x1b[0m  ");
+                }
+            }
+        }
+    }
     return;
+}
+
+int clearLine(Block canvas[CANVAS_HEIGHT][CANVAS_WIDTH]) {
+    for (int i = 0; i < CANVAS_HEIGHT; i++) {
+        for (int j = 0; j < CANVAS_WIDTH; j++) {
+            if (canvas[i][j].current) {
+                canvas[i][j].current = false;
+            }
+        }
+    }
+
+    int linesCleared = 0;
+
+    for (int i = CANVAS_HEIGHT - 1; i >= 0; i--)
+    {
+        bool isFull = true;
+        for (int j = 0; j < CANVAS_WIDTH; j++)
+        {
+            if (canvas[i][j].shape == EMPTY) {
+                isFull = false;
+                break;
+            }
+        }
+
+        if (isFull) {
+            linesCleared += 1;
+
+            for (int j = i; j > 0; j--)
+            {
+                for (int k = 0; k < CANVAS_WIDTH; k++)
+                {
+                    setBlock(&canvas[j][k], canvas[j - 1][k].color, canvas[j - 1][k].shape, false);
+                    resetBlock(&canvas[j - 1][k]);
+                }
+            }
+            i++;
+        }
+    }
+
+    return linesCleared;
 }
 
 void logic(Block canvas[CANVAS_HEIGHT][CANVAS_WIDTH], State* state)
 {
-    if (move(canvas, state->x, state->y, state->rotate, state->x, state->y + 1, state->rotate, state->queue[0]))
-        state->y++;
+    printf("\033[%d;%dH your score is : %d", 20, CANVAS_WIDTH * 2 + 5, state->score);
+
+    if (ROTATE_FUNC()) {
+        int newRotate = (state->rotate + 1) % 4;
+        if (move(canvas, state->x, state->y, state->rotate, state->x, state->y, newRotate, state->queue[0]))
+        {
+            state->rotate = newRotate;
+        }
+    }
+    else if (LEFT_FUNC()) {
+        if (move(canvas, state->x, state->y, state->rotate, state->x - 1, state->y, state->rotate, state->queue[0]))
+        {
+            state->x -= 1;
+        }
+    }
+    else if (RIGHT_FUNC()) {
+        if (move(canvas, state->x, state->y, state->rotate, state->x + 1, state->y, state->rotate, state->queue[0]))
+        {
+            state->x += 1;
+        }
+    }
+    else if (DOWN_FUNC()) {
+        state->fallTime = FALL_DELAY;
+    }
+    else if (FALL_FUNC()) {
+        state->fallTime += FALL_DELAY * CANVAS_HEIGHT;
+        Sleep(20);
+    }
+
+    state->fallTime += RENDER_DELAY;
+
+    while (state->fallTime >= state->speed) {
+        state->fallTime -= state->speed;
+        int final_score;
+
+        if (move(canvas, state->x, state->y, state->rotate, state->x, state->y + 1, state->rotate, state->queue[0])) {
+            state->y++;
+        }
+        else {
+            state->score += clearLine(canvas);
+            final_score = state->score;
+            state->x = CANVAS_WIDTH / 2;
+            state->y = 0;
+            state->rotate = 0;
+            state->fallTime = 0;
+            state->queue[0] = state->queue[1];
+            state->queue[1] = state->queue[2];
+            state->queue[2] = state->queue[3];
+            state->queue[3] = rand() % 7;
+
+            if (!move(canvas, state->x, state->y, state->rotate, state->x, state->y, state->rotate, state->queue[0]))
+            {
+                printf("\t\t\033[%d;%dH\x1b[41m GAME OVER \x1b[0m\033[%d;%dH", CANVAS_HEIGHT - 2, CANVAS_WIDTH * 2 + 5, CANVAS_HEIGHT + 5, 0);
+                printf("\t\t\033[%d;%dH\033[96m your final score is : %d\033[0m", 20, CANVAS_WIDTH * 2 + 5, final_score);
+                exit(0);
+            }
+        }
+    }
+    if (state->score % 2 == 0 && state->score > 0) { //到達2的倍數分 加快速度
+        state->speed -= 1;
+    }
+    if (HOLD_FUNC() && !state->hold_used) {
+
+        for (int i = 0; i < shapes[state->queue[0]].size; i++) {
+            for (int j = 0; j < shapes[state->queue[0]].size; j++) {
+                resetBlock(&canvas[state->y + i][state->x + j]);
+            }
+        }
+
+        if (holdShape == EMPTY) {
+            holdShape = state->queue[0];
+            state->queue[0] = state->queue[1];
+            state->queue[1] = state->queue[2];
+            state->queue[2] = state->queue[3];
+            state->queue[3] = rand() % 7;
+        }
+        else {
+            ShapeId temp = holdShape;
+            holdShape = state->queue[0];
+            state->queue[0] = temp;
+        }
+        //state->hold_used = 1;
+        state->x = CANVAS_WIDTH / 2;
+        state->y = 0;
+        state->score = 0;
+        state->rotate = 0;
+        state->fallTime = 0;
+        state->speed = FALL_DELAY;
+        state->hold_used = false;
+
+    }
     return;
+}
+ 
+void printOpeningScreen() {
+    printf("=== welcome to TETRIS! ===\n\n");
+    printf(" .-') _     ('-.   .-') _   _  .-')            .-')    \n");
+    printf("(  OO) )  _(  OO) (  OO) ) ( \\( -O )          ( OO ).  \n");
+    printf("/     '._(,------./     '._ ,------.  ,-.-') (_)---\\_) \n");
+    printf("|'--...__)|  .---'|'--...__)|   /`. ' |  |OO)/    _ |  \n");
+    printf("'--.  .--'|  |    '--.  .--'|  /  | | |  |  \\\\  :` `.  \n");
+    printf("   |  |  (|  '--.    |  |   |  |_.' | |  |(_/ '..`''.) \n");
+    printf("   |  |   |  .--'    |  |   |  .  '.',|  |_.'.-._)   \\ \n");
+    printf("   |  |   |  `---.   |  |   |  |\\  \\(_|  |   \\       / \n");
+    printf("   `--'   `------'   `--'   `--' '--' `--'    `-----'  \n");
+    printf("\n\033[5;47m 按下任意鍵開始遊戲 \033[m\n");
+    getch(); // 等待使用者按下任意鍵繼續
+}
+
+void HideCursor()
+{
+    CONSOLE_CURSOR_INFO cursor_info = { 1, 0 };
+    SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cursor_info);
 }
 
 int main()
 {
+    HideCursor();
+    printOpeningScreen(); // 印出開場畫面
     srand(time(NULL));
     State state = {
         .x = CANVAS_WIDTH / 2,
         .y = 0,
         .score = 0,
         .rotate = 0,
-        .fallTime = 0
+        .fallTime = 0,
+        .speed = FALL_DELAY,
+        .hold_used = false
     };
 
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 4; i++)
     {
         state.queue[i] = rand() % 7;
     }
@@ -350,7 +558,6 @@ int main()
     }
 
     system("cls");
-    printf("\e[?25l"); // hide cursor
 
     move(canvas, state.x, state.y, state.rotate, state.x, state.y, state.rotate, state.queue[0]);
 
