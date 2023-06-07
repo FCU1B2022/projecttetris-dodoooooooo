@@ -439,7 +439,7 @@ void logic(Block canvas[CANVAS_HEIGHT][CANVAS_WIDTH], State* state)
     }
     else if (FALL_FUNC()) {
         state->fallTime += FALL_DELAY * CANVAS_HEIGHT;
-        Sleep(20);
+        Sleep(50);
     }
 
     state->fallTime += RENDER_DELAY;
@@ -465,13 +465,23 @@ void logic(Block canvas[CANVAS_HEIGHT][CANVAS_WIDTH], State* state)
 
             if (!move(canvas, state->x, state->y, state->rotate, state->x, state->y, state->rotate, state->queue[0]))
             {
-                printf("\t\t\033[%d;%dH\x1b[41m GAME OVER \x1b[0m\033[%d;%dH", CANVAS_HEIGHT - 2, CANVAS_WIDTH * 2 + 5, CANVAS_HEIGHT + 5, 0);
-                printf("\t\t\033[%d;%dH\033[96m your final score is : %d\033[0m", 20, CANVAS_WIDTH * 2 + 5, final_score);
+                system("cls");
+                printf("               ('-.     _   .-')       ('-.                           (`-.      ('-.  _  .-')        \n");
+                printf("              ( OO ).-.( '.( OO )_   _(  OO)                        _(OO  )_  _(  OO)( \\( -O )      \n");
+                printf("  ,----.      / . --. / ,--.   ,--.)(,------.       .-'),-----. ,--(_/   ,. \\(,------.,------.      \n");
+                printf(" '  .-./-')   | \\-.  \\  |   `.'   |  |  .---'      ( OO'  .-.  '\\   \\   /(__/ |  .---'|   /`. '  \n");
+                printf(" |  |_( O- ).-'-'  |  | |         |  |  |          /   |  | |  | \\   \\ /   /  |  |    |  /  | |    \n");
+                printf(" |  | .--, \\ \\| |_.'  | |  |'.'|  | (|  '--.       \\_) |  |\\|  |  \\   '   /, (|  '--. |  |_.' | \n");
+                printf("(|  | '. (_/  |  .-.  | |  |   |  |  |  .--'         \\ |  | |  |   \\     /__) |  .--' |  .  '.'    \n");
+                printf(" |  '--'  |   |  | |  | |  |   |  |  |  `---.         `'  '-'  '    \\   /     |  `---.|  |\\  \\    \n");
+                printf("  `------'    `--' `--' `--'   `--'  `------'           `-----'      `-'      `------'`--' '--'      \n");
+                //printf("\t\t\033[%d;%dH\x1b[41m GAME OVER \x1b[0m\033[%d;%dH", CANVAS_HEIGHT - 2, CANVAS_WIDTH * 2 + 5, CANVAS_HEIGHT + 5, 0);
+                printf("\n\t\t\033[5;47m your final score is : %d\033[m", final_score);
                 exit(0);
             }
         }
     }
-    if (state->score % 2 == 0 && state->score > 0) { //到達2的倍數分 加快速度
+    if (state->score % 2 == 0 && state->score > 0) { //到達3的倍數分 加快速度
         state->speed -= 1;
     }
     if (HOLD_FUNC() && !state->hold_used) {
@@ -497,7 +507,6 @@ void logic(Block canvas[CANVAS_HEIGHT][CANVAS_WIDTH], State* state)
         //state->hold_used = 1;
         state->x = CANVAS_WIDTH / 2;
         state->y = 0;
-        state->score = 0;
         state->rotate = 0;
         state->fallTime = 0;
         state->speed = FALL_DELAY;
@@ -506,19 +515,19 @@ void logic(Block canvas[CANVAS_HEIGHT][CANVAS_WIDTH], State* state)
     }
     return;
 }
- 
+
 void printOpeningScreen() {
-    printf("=== welcome to TETRIS! ===\n\n");
-    printf(" .-') _     ('-.   .-') _   _  .-')            .-')    \n");
-    printf("(  OO) )  _(  OO) (  OO) ) ( \\( -O )          ( OO ).  \n");
-    printf("/     '._(,------./     '._ ,------.  ,-.-') (_)---\\_) \n");
-    printf("|'--...__)|  .---'|'--...__)|   /`. ' |  |OO)/    _ |  \n");
+    printf("\t\t=== welcome to TETRIS! ===\n\n");
+    printf(" .-') _     ('-.   .-') _   _  .-')            .-')      \n");
+    printf("(  OO) )  _(  OO) (  OO) ) ( \\( -O )          ( OO ).   \n");
+    printf("/     '._(,------./     '._ ,------.  ,-.-') (_)---\\_)  \n");
+    printf("|'--...__)|  .---'|'--...__)|   /`. ' |  |OO)/    _ |    \n");
     printf("'--.  .--'|  |    '--.  .--'|  /  | | |  |  \\\\  :` `.  \n");
-    printf("   |  |  (|  '--.    |  |   |  |_.' | |  |(_/ '..`''.) \n");
-    printf("   |  |   |  .--'    |  |   |  .  '.',|  |_.'.-._)   \\ \n");
-    printf("   |  |   |  `---.   |  |   |  |\\  \\(_|  |   \\       / \n");
-    printf("   `--'   `------'   `--'   `--' '--' `--'    `-----'  \n");
-    printf("\n\033[5;47m 按下任意鍵開始遊戲 \033[m\n");
+    printf("   |  |  (|  '--.    |  |   |  |_.' | |  |(_/ '..`''.)   \n");
+    printf("   |  |   |  .--'    |  |   |  .  '.',|  |_.'.-._)   \\  \n");
+    printf("   |  |   |  `---.   |  |   |  |\\  \\(_|  |   \\       /\n");
+    printf("   `--'   `------'   `--'   `--' '--' `--'    `-----'    \n");
+    printf("\n\t\t   \033[5;47m按下enter鍵開始遊戲 \033[m\n");
     getch(); // 等待使用者按下任意鍵繼續
 }
 
